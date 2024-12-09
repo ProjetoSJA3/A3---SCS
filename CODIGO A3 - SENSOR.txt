@@ -1,0 +1,105 @@
+﻿CODIGO:
+
+#include <Adafruit_LiquidCrystal.h>
+
+
+// Definindo os pinos para os potenciômetros e alerta
+const int eixoX = A0;  // Pino do potenciômetro 1 (eixo X)
+const int eixoY = A1;  // Pino do potenciômetro 2 (eixo Y)
+const int alerta = 9;  // Pino do LED ou buzzer
+
+
+// Definindo as variáveis para os ângulos
+int anguloX, anguloY;
+float aceleracaoX, aceleracaoY;  // Variáveis para armazenar aceleração simulada
+
+
+// Limites de detecção para queda
+int limiteNormalMin = -45;  // Limite inferior
+int limiteNormalMax = 45;   // Limite superior
+
+
+Adafruit_LiquidCrystal lcd_1(0); // Definindo o LCD
+
+
+// Dados do paciente
+String paciente = "MAR143"; // Sintaxe do paciente
+String status = "Normal";  // Inicialmente o status é normal
+
+
+// Variáveis para controle de tempo
+unsigned long previousMillis = 0;
+const long interval = 100;  // Intervalo de 100 ms para atualizações rápidas
+
+
+void setup() {
+  // Configuração do alerta (LED ou Buzzer)
+  pinMode(alerta, OUTPUT);
+  Serial.begin(9600);  // Comunicação serial para monitoramento
+
+
+  // Inicializa o LCD
+  lcd_1.begin(16, 2);
+  lcd_1.setBacklight(1);  // Acende o backlight do LCD
+  lcd_1.print("Sistema Ativo");  // Mensagem inicial
+  delay(2000);  // Exibe a mensagem inicial por 2 segundos
+  lcd_1.clear();  // Limpa o LCD
+}
+
+
+void loop() {
+  // Verifica o tempo passado e lê os potenciômetros a cada intervalo
+  unsigned long currentMillis = millis();
+
+
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+
+    // Leitura dos potenciômetros
+    int leituraX = analogRead(eixoX);  // Leitura do eixo X
+    int leituraY = analogRead(eixoY);  // Leitura do eixo Y
+    
+    // Mapeamento para graus de inclinação (-90 a 90)
+    anguloX = map(leituraX, 0, 1023, -90, 90);
+    anguloY = map(leituraY, 0, 1023, -90, 90);
+
+
+    // Simula os valores de aceleração (-1g a +1g)
+    aceleracaoX = anguloX / 90.0;  // Aceleração em X
+    aceleracaoY = anguloY / 90.0;  // Aceleração em Y
+
+
+    // Exibe as informações no LCD (paciente e status)
+    lcd_1.setCursor(0, 0);
+    lcd_1.print("Paciente: " + paciente);  // Exibe "Paciente: MAR143"
+    lcd_1.setCursor(0, 1);
+    lcd_1.print("Status: ");  // "Status: " já foi escrito, então não será apagado
+    lcd_1.print("        "); // Limpa qualquer texto anterior que tenha sobrado
+
+
+    // Verificar se os ângulos estão fora da faixa normal (-45° a +45°)
+    if (anguloX < limiteNormalMin || anguloX > limiteNormalMax || anguloY < limiteNormalMin || anguloY > limiteNormalMax) {
+      // Emite som de alerta repetitivo enquanto os ângulos estiverem fora da faixa normal
+      tone(alerta, 2000);  // Frequência de 2000 Hz para som agudo
+      status = "Queda";  // Atualiza o status para "Queda"
+      lcd_1.setCursor(8, 1); // Posição do texto "Queda"
+      lcd_1.print(status);   // Exibe "Queda"
+    } else {
+      noTone(alerta);  // Desliga o som quando a posição estiver normal
+      status = "Normal";  // Atualiza o status para "Normal"
+      lcd_1.setCursor(8, 1); // Posição do texto "Normal"
+      lcd_1.print(status);   // Exibe "Normal"
+    }
+    
+    // Exibe os valores dos eixos X, Y e aceleração no monitor serial em tempo real
+    Serial.print("Eixo X: ");
+    Serial.print(anguloX);
+    Serial.print(" | Aceleracao X: ");
+    Serial.print(aceleracaoX);
+    Serial.print(" | Eixo Y: ");
+    Serial.print(anguloY);
+    Serial.print(" | Aceleracao Y: ");
+    Serial.println(aceleracaoY);  // Exibe no monitor serial os valores dos eixos e aceleração
+  }
+}
